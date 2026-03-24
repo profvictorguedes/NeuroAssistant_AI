@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.logging import setup_logging
+from app.api.routes.health import router as health_router
 
 setup_logging()
 
@@ -12,6 +13,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(health_router, prefix="/api")
 
 @app.get("/")
 async def read_root():
