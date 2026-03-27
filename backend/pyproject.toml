@@ -1,0 +1,16 @@
+[project]
+name = "neuroassistant-ai-backend"
+version = "0.1.0"
+description = "FastAPI backend for NeuroAssistant AI"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "pydantic",
+  "pydantic-settings",
+  "python-dotenv",
+  "python-multipart",
+  "httpx",
+  "azure-storage-blob",
+  "pytest"
+]
