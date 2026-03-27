@@ -9,9 +9,11 @@ type Props = {
   loading: boolean;
   error: string;
   onExport: () => void;
+  exportSuccess?: boolean;
+  exportError?: string;
 };
 
-export function OutputPanel({ result, loading, error, onExport }: Props) {
+export function OutputPanel({ result, loading, error, onExport, exportSuccess, exportError }: Props) {
   return (
     <Card>
       <div className="mb-4 flex items-center justify-between">
@@ -22,10 +24,14 @@ export function OutputPanel({ result, loading, error, onExport }: Props) {
           </p>
         </div>
         {result && (
-          <Button variant="secondary" onClick={onExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button variant="secondary" onClick={onExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            {exportSuccess && <span className="text-xs text-emerald-400">Exported successfully.</span>}
+            {exportError && <span className="text-xs text-rose-400">{exportError}</span>}
+          </div>
         )}
       </div>
 
@@ -56,8 +62,8 @@ export function OutputPanel({ result, loading, error, onExport }: Props) {
             <div className="rounded-2xl bg-slate-900/60 p-4">
               <div className="mb-2 font-semibold text-white">Next Actions</div>
               <ul className="space-y-2 text-sm text-slate-300">
-                {result.next_actions.map((item) => (
-                  <li key={item}>• {item}</li>
+                {result.next_actions.map((item, i) => (
+                  <li key={i}>• {item}</li>
                 ))}
               </ul>
             </div>
@@ -65,8 +71,8 @@ export function OutputPanel({ result, loading, error, onExport }: Props) {
             <div className="rounded-2xl bg-slate-900/60 p-4">
               <div className="mb-2 font-semibold text-white">Services Used</div>
               <ul className="space-y-2 text-sm text-slate-300">
-                {result.used_services.map((item) => (
-                  <li key={item}>• {item}</li>
+                {result.used_services.map((item, i) => (
+                  <li key={i}>• {item}</li>
                 ))}
               </ul>
             </div>
