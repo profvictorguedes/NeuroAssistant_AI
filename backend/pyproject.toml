@@ -11,6 +11,12 @@ dependencies = [
   "python-dotenv",
   "python-multipart",
   "httpx",
+  "openai",
   "azure-storage-blob",
-  "pytest"
+  "azure-ai-contentsafety",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
 ]
