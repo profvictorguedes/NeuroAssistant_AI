@@ -20,8 +20,13 @@ export function InputPanel({ text, onChange }: Props) {
         value={text}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Paste something cognitively heavy here..."
+        maxLength={12000}
+        aria-label="Input text"
         className="min-h-[220px] w-full rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-slate-100 outline-none ring-0 placeholder:text-slate-500"
       />
+      <div className="mt-1 text-right text-xs text-slate-500">
+        {text.length.toLocaleString()} / 12,000
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {sampleInputs.map((sample) => (
