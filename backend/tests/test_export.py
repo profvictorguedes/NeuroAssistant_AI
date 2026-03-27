@@ -1,3 +1,4 @@
+from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -16,3 +17,8 @@ def test_export_markdown_success():
     body = response.json()
     assert body["success"] is True
     assert body["download_name"].endswith(".md")
+
+    # Clean up artifact written to disk during the test
+    artifact = Path(body["download_name"])
+    if artifact.exists():
+        artifact.unlink()
