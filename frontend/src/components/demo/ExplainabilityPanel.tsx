@@ -20,8 +20,8 @@ export function ExplainabilityPanel({ result }: Props) {
           <div className="rounded-2xl bg-slate-900/60 p-4">
             <div className="mb-2 font-semibold text-white">Why this output</div>
             <ul className="space-y-2 text-sm text-slate-300">
-              {result.why_this_output.map((item) => (
-                <li key={item}>• {item}</li>
+              {result.why_this_output.map((item, i) => (
+                <li key={i}>• {item}</li>
               ))}
             </ul>
           </div>
@@ -29,8 +29,8 @@ export function ExplainabilityPanel({ result }: Props) {
           <div className="rounded-2xl bg-slate-900/60 p-4">
             <div className="mb-2 font-semibold text-white">Grounding signals</div>
             <ul className="space-y-2 text-sm text-slate-300">
-              {result.grounded_sources.map((item) => (
-                <li key={item}>• {item}</li>
+              {result.grounded_sources.map((item, i) => (
+                <li key={i}>• {item.length > 120 ? `${item.slice(0, 120)}…` : item}</li>
               ))}
             </ul>
           </div>
