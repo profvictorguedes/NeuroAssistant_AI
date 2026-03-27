@@ -2,7 +2,7 @@ from app.schemas.assistant import AssistantRequest, AssistantResult
 
 
 class MockAIService:
-    def generate(self, payload: AssistantRequest) -> AssistantResult:
+    def generate(self, payload: AssistantRequest, context: list[str] | None = None) -> AssistantResult:
         text = payload.text.strip()
 
         if payload.mode == "simplify":
@@ -52,7 +52,7 @@ class MockAIService:
             )
             title = "Calm Guidance"
 
-        else:
+        elif payload.mode == "task_breakdown":
             transformed = (
                 "Task Breakdown:\n\n"
                 "1. Understand the goal.\n"
@@ -62,6 +62,10 @@ class MockAIService:
                 "5. Package the final output."
             )
             title = "Step-by-Step Task Breakdown"
+
+        else:
+            transformed = f"Transformed output:\n\n{text[:180]}..."
+            title = "Transformed Output"
 
         return AssistantResult(
             title=title,
