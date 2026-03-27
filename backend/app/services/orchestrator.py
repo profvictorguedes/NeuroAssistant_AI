@@ -1,4 +1,5 @@
 from app.core.config import settings
+from app.core.exceptions import ServiceError
 from app.schemas.assistant import AssistantRequest, AssistantResponse
 from app.services.azure_content_safety_service import AzureContentSafetyService
 from app.services.azure_openai_service import AzureOpenAIService
@@ -15,16 +16,22 @@ class AssistantOrchestrator:
     def run(self, payload: AssistantRequest) -> AssistantResponse:
         safety_ok = self.safety.analyze_text(payload.text)
 
-        result = self.ai.generate(payload)
+        if not safety_ok:
+            raise ServiceError("Content blocked by the safety filter. Please revise your input.")
+
+        # Retrieve context first so it can be passed to the AI for grounding
+        context = self.search.retrieve_context(payload.text)
+        result = self.ai.generate(payload, context=context)
+
         result.safety_passed = safety_ok
-        result.grounded_sources = self.search.retrieve_context(payload.text)
+        result.grounded_sources = context
 
         if settings.use_mock_ai:
             result.used_services = [
                 "Mock AI",
-                "Azure AI Search-ready layer",
-                "Azure Content Safety-ready layer",
-                "Azure Blob-ready layer",
+                "Azure AI Search (fallback)",
+                "Azure Content Safety (fallback)",
+                "Azure Blob Storage (fallback)",
             ]
         else:
             result.used_services = [
