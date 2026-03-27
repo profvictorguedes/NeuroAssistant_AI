@@ -11,7 +11,7 @@ const defaultPreferences: Preferences = {
   visual_chunking: true,
   bullet_steps: true,
   calming_tone: true,
-  deadline_aware: false,
+  deadline_aware: true,
   beginner_friendly: true,
 };
 
@@ -22,6 +22,8 @@ export function useAssistant() {
   const [result, setResult] = useState<AssistantResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   async function runTransform() {
     setLoading(true);
@@ -33,8 +35,9 @@ export function useAssistant() {
         preferences,
       });
       setResult(response.result);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Something went wrong.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr?.response?.data?.detail || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -42,10 +45,18 @@ export function useAssistant() {
 
   async function runExport() {
     if (!result) return;
-    await exportMarkdown(
-      "neuroassistant-output",
-      `# ${result.title}\n\n${result.transformed_text}`
-    );
+    setExportError("");
+    setExportSuccess(false);
+    try {
+      await exportMarkdown(
+        "neuroassistant-output",
+        `# ${result.title}\n\n${result.transformed_text}`
+      );
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch {
+      setExportError("Export failed. Please try again.");
+    }
   }
 
   return {
@@ -58,6 +69,8 @@ export function useAssistant() {
     result,
     loading,
     error,
+    exportSuccess,
+    exportError,
     runTransform,
     runExport,
   };
