@@ -1,5 +1,11 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
 python-dotenv
+python-multipart
+httpx
 openai
+azure-storage-blob
+azure-ai-contentsafety
+pytest
