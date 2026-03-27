@@ -18,6 +18,8 @@ export function Workspace() {
     result,
     loading,
     error,
+    exportSuccess,
+    exportError,
     runTransform,
     runExport,
   } = useAssistant();
@@ -44,6 +46,8 @@ export function Workspace() {
               loading={loading}
               error={error}
               onExport={runExport}
+              exportSuccess={exportSuccess}
+              exportError={exportError}
             />
             <ExplainabilityPanel result={result} />
           </div>
