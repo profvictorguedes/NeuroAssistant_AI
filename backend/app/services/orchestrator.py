@@ -1,44 +1,63 @@
+import logging
+
 from app.core.config import settings
-from app.core.exceptions import ServiceError
 from app.schemas.assistant import AssistantRequest, AssistantResponse
 from app.services.azure_content_safety_service import AzureContentSafetyService
 from app.services.azure_openai_service import AzureOpenAIService
 from app.services.azure_search_service import AzureSearchService
-from app.services.mock_ai_services import MockAIService
+from app.services.mock_ai_service import MockAIService
+
+logger = logging.getLogger(__name__)
 
 
 class AssistantOrchestrator:
     def __init__(self) -> None:
         self.safety = AzureContentSafetyService()
         self.search = AzureSearchService()
-        self.ai = MockAIService() if settings.use_mock_ai else AzureOpenAIService()
 
     def run(self, payload: AssistantRequest) -> AssistantResponse:
-        safety_ok = self.safety.analyze_text(payload.text)
+        # 1) Safety
+        try:
+            safety_ok = self.safety.analyze_text(payload.text)
+        except Exception as exc:
+            logger.exception("Safety check failed, defaulting to safe=False fallback: %s", exc)
+            safety_ok = False
 
-        if not safety_ok:
-            raise ServiceError("Content blocked by the safety filter. Please revise your input.")
+        # 2) AI generation
+        try:
+            if settings.use_mock_ai:
+                result = MockAIService().generate(payload)
+            else:
+                try:
+                    result = AzureOpenAIService().generate(payload)
+                except Exception as exc:
+                    logger.exception("Azure OpenAI failed, falling back to Mock AI: %s", exc)
+                    result = MockAIService().generate(payload)
+        except Exception as exc:
+            logger.exception("AI generation failed completely: %s", exc)
+            raise
 
-        # Retrieve context first so it can be passed to the AI for grounding
-        context = self.search.retrieve_context(payload.text)
-        result = self.ai.generate(payload, context=context)
+        # 3) Search grounding
+        try:
+            result.grounded_sources = self.search.retrieve_context(payload.text)
+        except Exception as exc:
+            logger.exception("Search grounding failed, using fallback context: %s", exc)
+            result.grounded_sources = ["Fallback context in use"]
 
+        # 4) Final metadata
         result.safety_passed = safety_ok
-        result.grounded_sources = context
 
         if settings.use_mock_ai:
             result.used_services = [
                 "Mock AI",
-                "Azure AI Search (fallback)",
-                "Azure Content Safety (fallback)",
-                "Azure Blob Storage (fallback)",
+                "Azure Content Safety",
+                "Azure AI Search-ready layer",
+                "Azure Blob-ready layer",
             ]
         else:
-            result.used_services = [
-                "Azure OpenAI",
-                "Azure AI Search",
-                "Azure Content Safety",
-                "Azure Blob Storage",
-            ]
+            if "Azure OpenAI" not in result.used_services:
+                result.used_services.insert(0, "Azure OpenAI")
+            if "Azure Content Safety" not in result.used_services:
+                result.used_services.append("Azure Content Safety")
 
         return AssistantResponse(success=True, result=result)

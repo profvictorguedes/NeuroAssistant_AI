@@ -1,13 +1,10 @@
 import logging
+
 import httpx
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-_FALLBACK_CONTEXT = [
-    "Use chunked explanations for improved readability.",
-    "Prefer step-by-step tasks for executive function support.",
-]
 
 
 class AzureSearchService:
@@ -18,36 +15,51 @@ class AzureSearchService:
             settings.azure_search_index,
         ]):
             logger.warning("Azure AI Search not configured — returning fallback context.")
-            return _FALLBACK_CONTEXT
+            return [
+                "Use chunked explanations for improved readability.",
+                "Prefer step-by-step tasks for executive function support.",
+            ]
+
+        url = (
+            f"{settings.azure_search_endpoint}/indexes/"
+            f"{settings.azure_search_index}/docs/search?api-version=2023-11-01"
+        )
+
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": settings.azure_search_api_key,
+        }
+
+        payload = {
+            "search": query,
+            "top": 3,
+            "select": "content",
+        }
 
         try:
-            url = (
-                f"{settings.azure_search_endpoint.rstrip('/')}"
-                f"/indexes/{settings.azure_search_index}/docs/search"
-                "?api-version=2023-11-01"
-            )
-            headers = {
-                "api-key": settings.azure_search_api_key,
-                "Content-Type": "application/json",
-            }
-            body = {"search": query, "top": 3, "queryType": "simple"}
+            response = httpx.post(url, headers=headers, json=payload, timeout=10.0)
+            response.raise_for_status()
 
-            with httpx.Client(timeout=10) as client:
-                response = client.post(url, headers=headers, json=body)
-                response.raise_for_status()
+            data = response.json()
+            values = data.get("value", [])
 
-            results = []
-            for doc in response.json().get("value", []):
-                content = (
-                    doc.get("content")
-                    or doc.get("text")
-                    or doc.get("chunk")
-                    or str(doc)
-                )
-                results.append(str(content)[:500])
+            contexts = []
+            for item in values:
+                content = item.get("content")
+                if content:
+                    contexts.append(content)
 
-            return results if results else _FALLBACK_CONTEXT
+            if not contexts:
+                return [
+                    "Use chunked explanations for improved readability.",
+                    "Prefer step-by-step tasks for executive function support.",
+                ]
+
+            return contexts
 
         except Exception as exc:
             logger.error("Azure AI Search error: %s — returning fallback context.", exc)
-            return _FALLBACK_CONTEXT
+            return [
+                "Use chunked explanations for improved readability.",
+                "Prefer step-by-step tasks for executive function support.",
+            ]

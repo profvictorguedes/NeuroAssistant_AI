@@ -1,18 +1,23 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from app.core.exceptions import ServiceError
 from app.schemas.assistant import AssistantRequest, AssistantResponse
 from app.services.orchestrator import AssistantOrchestrator
 
-router = APIRouter(prefix="/assistant", tags=["assistant"])
+logger = logging.getLogger(__name__)
 
-_orchestrator = AssistantOrchestrator()
+router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
 @router.post("/transform", response_model=AssistantResponse)
 def transform(payload: AssistantRequest) -> AssistantResponse:
     try:
-        return _orchestrator.run(payload)
+        orchestrator = AssistantOrchestrator()
+        return orchestrator.run(payload)
     except ServiceError as exc:
+        logger.exception("ServiceError during assistant transform: %s", exc)
         raise HTTPException(status_code=400, detail=exc.message) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail="An unexpected error occurred.") from exc
+        logger.exception("Unhandled error during assistant transform: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
