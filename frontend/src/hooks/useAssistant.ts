@@ -21,6 +21,14 @@ const defaultPreferences: Preferences = {
   beginner_friendly: true,
 };
 
+const STORAGE_KEYS = {
+  blobContainer: "naai_blobContainer",
+  blobFolder: "naai_blobFolder",
+  blobFiles: "naai_blobFiles",
+  blobTreeVisible: "naai_blobTreeVisible",
+  expandedFolders: "naai_expandedFolders",
+};
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -38,6 +46,30 @@ function inferTopicFromInput(text: string): string {
   if (!cleaned) return "neuroassistant-session";
   const firstChunk = cleaned.split(/[.!?\n]/)[0].slice(0, 60);
   return slugify(firstChunk);
+}
+
+function buildExportFilename(container: string): string {
+  const safeContainer = slugify(container);
+  const randomNumber = Math.floor(100000 + Math.random() * 900000);
+  return `${safeContainer}-${randomNumber}`;
+}
+
+function readSessionStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSessionStorage<T>(key: string, value: T) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore browser storage failures
+  }
 }
 
 export type TreeNode = {
@@ -107,19 +139,48 @@ export function useAssistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [blobContainer, setBlobContainer] = useState("neuroassistant-session");
-  const [blobFolder, setBlobFolder] = useState("simplify");
-  const [blobFiles, setBlobFiles] = useState<string[]>([]);
-  const [blobTreeVisible, setBlobTreeVisible] = useState(false);
+  const [blobContainer, setBlobContainer] = useState<string>(() =>
+    readSessionStorage<string>(STORAGE_KEYS.blobContainer, "neuroassistant-session")
+  );
+  const [blobFolder, setBlobFolder] = useState<string>(() =>
+    readSessionStorage<string>(STORAGE_KEYS.blobFolder, "simplify")
+  );
+  const [blobFiles, setBlobFiles] = useState<string[]>(() =>
+    readSessionStorage<string[]>(STORAGE_KEYS.blobFiles, [])
+  );
+  const [blobTreeVisible, setBlobTreeVisible] = useState<boolean>(() =>
+    readSessionStorage<boolean>(STORAGE_KEYS.blobTreeVisible, false)
+  );
   const [exportSuccess, setExportSuccess] = useState("");
   const [lastExportSignature, setLastExportSignature] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>(
-    {}
+    () => readSessionStorage<Record<string, boolean>>(STORAGE_KEYS.expandedFolders, {})
   );
+  const [listLoading, setListLoading] = useState(false);
 
   useEffect(() => {
     setBlobFolder(mode);
   }, [mode]);
+
+  useEffect(() => {
+    writeSessionStorage(STORAGE_KEYS.blobContainer, blobContainer);
+  }, [blobContainer]);
+
+  useEffect(() => {
+    writeSessionStorage(STORAGE_KEYS.blobFolder, blobFolder);
+  }, [blobFolder]);
+
+  useEffect(() => {
+    writeSessionStorage(STORAGE_KEYS.blobFiles, blobFiles);
+  }, [blobFiles]);
+
+  useEffect(() => {
+    writeSessionStorage(STORAGE_KEYS.blobTreeVisible, blobTreeVisible);
+  }, [blobTreeVisible]);
+
+  useEffect(() => {
+    writeSessionStorage(STORAGE_KEYS.expandedFolders, expandedFolders);
+  }, [expandedFolders]);
 
   const exportSignature = useMemo(
     () =>
@@ -163,11 +224,13 @@ export function useAssistant() {
     if (!result || !canExportToAzure) return;
 
     const exportContainer = inferTopicFromInput(text);
+    const exportFolder = mode;
+    const exportFilename = buildExportFilename(exportContainer);
 
     const response = await exportSessionToBlob({
       container: exportContainer,
-      folder: mode,
-      filename: `session-${Date.now()}`,
+      folder: exportFolder,
+      filename: exportFilename,
       input_text: text,
       output_text: result.transformed_text,
       mode,
@@ -175,9 +238,21 @@ export function useAssistant() {
     });
 
     setBlobContainer(exportContainer);
-    setBlobFolder(mode);
+    setBlobFolder(exportFolder);
     setLastExportSignature(exportSignature);
-    setExportSuccess(`Exported successfully to ${exportContainer}/${mode}`);
+    setExportSuccess(`Exported successfully to ${exportContainer}/${exportFolder}`);
+
+    const fullBlobPath = `${exportFolder}/${exportFilename}.json`;
+    setBlobFiles((prev) => {
+      const next = prev.includes(fullBlobPath) ? prev : [...prev, fullBlobPath];
+      return [...next].sort((a, b) => a.localeCompare(b));
+    });
+
+    setBlobTreeVisible(true);
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [exportFolder]: true,
+    }));
 
     return response;
   }
@@ -188,18 +263,27 @@ export function useAssistant() {
       return;
     }
 
-    const response = await listBlobSessions({
-      container: blobContainer,
-    });
-
-    const sorted = [...(response.blobs || [])].sort((a, b) =>
-      a.localeCompare(b)
-    );
-
-    setBlobFiles(sorted);
     setBlobTreeVisible(true);
 
-    return response;
+    if (blobFiles.length > 0) {
+      return;
+    }
+
+    try {
+      setListLoading(true);
+      const response = await listBlobSessions({
+        container: blobContainer,
+      });
+
+      const sorted = [...(response.blobs || [])].sort((a, b) =>
+        a.localeCompare(b)
+      );
+
+      setBlobFiles(sorted);
+      return response;
+    } finally {
+      setListLoading(false);
+    }
   }
 
   async function runBlobImport(blobName: string) {
@@ -280,5 +364,6 @@ export function useAssistant() {
     expandedFolders,
     toggleFolder,
     setBlobContainer,
+    listLoading,
   };
 }

@@ -1,4 +1,13 @@
-import { Wand2, Upload, FolderTree, FileText, ChevronRight, ChevronDown, Folder, File } from "lucide-react";
+import {
+  Wand2,
+  Upload,
+  FolderTree,
+  FileText,
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  File,
+} from "lucide-react";
 import { useAssistant } from "../../hooks/useAssistant";
 import { Button } from "../ui/Button";
 import { InputPanel } from "./InputPanel";
@@ -44,23 +53,33 @@ function BlobTree({
               <button
                 type="button"
                 onClick={() => toggleFolder(node.fullPath)}
-                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm text-slate-300 hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
               >
-                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
                 <Folder className="h-4 w-4 text-cyan-300" />
                 <span>{node.name}</span>
               </button>
 
-              {isOpen && node.children && node.children.length > 0 && (
-                <div className="ml-5 border-l border-white/10 pl-3">
-                  <BlobTree
-                    nodes={node.children}
-                    expandedFolders={expandedFolders}
-                    toggleFolder={toggleFolder}
-                    onImport={onImport}
-                  />
-                </div>
-              )}
+              <div
+                className={`overflow-hidden transition-all duration-200 ease-out ${
+                  isOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                {node.children && node.children.length > 0 && (
+                  <div className="ml-5 border-l border-white/10 pl-3">
+                    <BlobTree
+                      nodes={node.children}
+                      expandedFolders={expandedFolders}
+                      toggleFolder={toggleFolder}
+                      onImport={onImport}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           );
         }
@@ -70,7 +89,7 @@ function BlobTree({
             key={node.fullPath}
             type="button"
             onClick={() => onImport(node.fullPath)}
-            className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+            className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-xs text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
           >
             <File className="h-4 w-4 text-violet-300" />
             <span>{node.name}</span>
@@ -105,6 +124,7 @@ export function Workspace() {
     canExportToAzure,
     expandedFolders,
     toggleFolder,
+    listLoading,
   } = useAssistant();
 
   return (
@@ -114,9 +134,12 @@ export function Workspace() {
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
             Interactive Demo
           </div>
-          <h2 className="mt-2 text-3xl font-black text-white">Adaptive Workspace</h2>
+          <h2 className="mt-2 text-3xl font-black text-white">
+            Adaptive Workspace
+          </h2>
           <p className="mt-2 text-slate-400">
-            Select a support mode, paste cognitively heavy content, and generate a calmer output.
+            Select a support mode, paste cognitively heavy content, and generate
+            a calmer output.
           </p>
         </div>
 
@@ -168,16 +191,24 @@ export function Workspace() {
 
               <div className="mt-4 grid gap-3">
                 <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Container</div>
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                    Container
+                  </div>
                   <div className="mt-1 text-sm text-slate-100">{blobContainer}</div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Folder Prefix</div>
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                    Folder Prefix
+                  </div>
                   <div className="mt-1 text-sm capitalize text-slate-100">{blobFolder}</div>
                 </div>
 
-                <Button variant="secondary" onClick={runBlobExport} disabled={!canExportToAzure}>
+                <Button
+                  variant="secondary"
+                  onClick={runBlobExport}
+                  disabled={!canExportToAzure}
+                >
                   <Upload className="mr-2 h-4 w-4" />
                   Export Session to Azure
                 </Button>
@@ -190,14 +221,28 @@ export function Workspace() {
 
                 <Button variant="secondary" onClick={runBlobListToggle}>
                   <FolderTree className="mr-2 h-4 w-4" />
-                  Load Sessions List
+                  {blobTreeVisible ? "Hide Sessions List" : "Load Sessions List"}
                 </Button>
 
-                {blobTreeVisible && (
+                <div
+                  className={`overflow-hidden transition-all duration-200 ease-out ${
+                    blobTreeVisible ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
                   <div className="rounded-2xl bg-slate-900/60 p-3">
-                    <div className="mb-2 text-sm font-semibold text-slate-200">Available files</div>
-                    {blobTree.length === 0 ? (
-                      <div className="text-xs text-slate-500">No exported sessions found.</div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-slate-200">
+                        Available files
+                      </div>
+                      {listLoading && (
+                        <div className="text-xs text-cyan-300">Loading…</div>
+                      )}
+                    </div>
+
+                    {blobTree.length === 0 && !listLoading ? (
+                      <div className="text-xs text-slate-500">
+                        No exported sessions found.
+                      </div>
                     ) : (
                       <BlobTree
                         nodes={blobTree}
@@ -207,7 +252,7 @@ export function Workspace() {
                       />
                     )}
                   </div>
-                )}
+                </div>
 
                 <Button variant="secondary" onClick={runWordExport} disabled={!result}>
                   <FileText className="mr-2 h-4 w-4" />
