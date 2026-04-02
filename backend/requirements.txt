@@ -9,3 +9,4 @@ openai
 azure-storage-blob
 azure-ai-contentsafety
 pytest
+python-docx
